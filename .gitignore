@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.env
+.streamlit/
+reminders_log.csv
+invoices.xlsx
+
