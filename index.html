@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Follow-up Agent — MCCIA AI Studio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        body {
+            background-color: #0e1117;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid #30363d;
+            padding-bottom: 20px;
+        }
+        .icon {
+            font-size: 48px;
+        }
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #f0f6fc;
+        }
+        .subtitle {
+            color: #8b949e;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+        .badge {
+            display: inline-block;
+            background: rgba(56, 139, 253, 0.15);
+            color: #58a6ff;
+            border: 1px solid rgba(56, 139, 253, 0.4);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin: 24px 0;
+        }
+        .card {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .card h3 {
+            font-size: 16px;
+            color: #58a6ff;
+            margin-bottom: 8px;
+        }
+        .card p {
+            font-size: 13px;
+            color: #8b949e;
+            line-height: 1.5;
+        }
+        .code-box {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: monospace;
+            color: #7ee787;
+            font-size: 14px;
+            margin-top: 16px;
+        }
+        .footer {
+            margin-top: 32px;
+            text-align: center;
+            color: #8b949e;
+            font-size: 12px;
+            border-top: 1px solid #30363d;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <span class="badge">🤖 MCCIA AI Studio Pune</span>
+        <div class="header">
+            <div class="icon">📬</div>
+            <div>
+                <h1>Payment Reminder Follow-up Agent</h1>
+                <div class="subtitle">Automated AI payment reminder system for small & medium businesses</div>
+            </div>
+        </div>
+
+        <p style="color: #c9d1d9; line-height: 1.6;">
+            This repository contains the full Streamlit Python application for scanning overdue invoices, drafting personalized AI emails via Groq LLM, and sending automated follow-ups via Gmail SMTP.
+        </p>
+
+        <div class="grid">
+            <div class="card">
+                <h3>📊 Multi-Format Support</h3>
+                <p>Upload invoices in <b>Excel (.xlsx, .xls)</b>, <b>CSV</b>, <b>PDF</b>, or <b>Word (.docx)</b> format.</p>
+            </div>
+            <div class="card">
+                <h3>🧠 Groq AI Drafting</h3>
+                <p>Generates professional, personalized follow-up reminder emails tailored to overdue days & invoice notes.</p>
+            </div>
+            <div class="card">
+                <h3>📧 Direct Gmail SMTP</h3>
+                <p>Integrates securely with your Gmail App Password to dispatch follow-up emails directly.</p>
+            </div>
+        </div>
+
+        <h3 style="font-size: 16px; color: #f0f6fc; margin-top: 24px;">🚀 How to Run Locally</h3>
+        <div class="code-box">
+            pip install -r requirements.txt<br>
+            streamlit run app.py
+        </div>
+
+        <div class="footer">
+            Payment Reminder Follow-up Agent &copy; 2026 SEETECH Solutions / MCCIA AI Studio
+        </div>
+    </div>
+</body>
+</html>
