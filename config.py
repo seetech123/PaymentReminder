@@ -11,7 +11,7 @@ load_dotenv()
 
 # ── Groq (free LLM) ──────────────────────────────────────────
 GROQ_API_KEY: str  = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL:   str  = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_MODEL:   str  = os.getenv("GROQ_MODEL", "groq/compound")
 
 # ── Gmail SMTP (free email) ──────────────────────────────────
 # Use an App Password, NOT your Gmail login password.

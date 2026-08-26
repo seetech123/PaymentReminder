@@ -79,21 +79,50 @@ def _active_gmail()    -> str:  return st.session_state.rt_gmail_user  or os.get
 def _active_gmail_pw() -> str:  return st.session_state.rt_gmail_pass  or os.getenv("GMAIL_APP_PASSWORD","")
 def _active_biz()      -> str:  return st.session_state.rt_biz_name    or BUSINESS_NAME
 
-_init()
+def get_working_groq_model(c: Groq) -> str:
+    candidates = [
+        GROQ_MODEL,
+        "groq/compound",
+        "qwen/qwen3.6-27b",
+        "openai/gpt-oss-20b",
+        "groq/compound-mini",
+        "llama-3.3-70b-versatile"
+    ]
+    try:
+        models = [m.id for m in c.models.list().data]
+        for cand in candidates:
+            if cand in models:
+                return cand
+        chat_models = [m for m in models if "whisper" not in m and "guard" not in m]
+        if chat_models:
+            return chat_models[0]
+    except Exception:
+        pass
 
-# ─────────────────────────────────────────────────────────────
-# Credential verifiers
-# ─────────────────────────────────────────────────────────────
+    for model in candidates:
+        try:
+            c.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": "Say OK"}],
+                max_tokens=5,
+            )
+            return model
+        except Exception:
+            continue
+    return GROQ_MODEL
+
 
 def verify_groq(api_key: str) -> tuple[bool, str]:
     try:
         c = Groq(api_key=api_key)
+        working_model = get_working_groq_model(c)
         c.chat.completions.create(
-            model=GROQ_MODEL,
+            model=working_model,
             messages=[{"role": "user", "content": "Say OK"}],
             max_tokens=5,
         )
-        return True, "✅ Connected to Groq successfully."
+        st.session_state["groq_working_model"] = working_model
+        return True, f"✅ Connected to Groq successfully using model ({working_model})."
     except Exception as exc:
         return False, f"❌ {exc}"
 
@@ -114,9 +143,10 @@ def verify_gmail(user: str, password: str) -> tuple[bool, str]:
 # ─────────────────────────────────────────────────────────────
 
 @st.cache_data(show_spinner=False)
-def _draft_email(invoice_json: str, biz_name: str, groq_key: str) -> tuple[str, str]:
+def _draft_email(invoice_json: str, biz_name: str, groq_key: str, model_name: str = "") -> tuple[str, str]:
     inv    = json.loads(invoice_json)
     client = Groq(api_key=groq_key)
+    target_model = model_name or st.session_state.get("groq_working_model", GROQ_MODEL)
 
     prompt = f"""Draft a professional payment reminder email.
 
@@ -130,12 +160,12 @@ Invoice:
 Return ONLY a valid JSON with keys "subject" and "body".
 Body rules: plain text, no markdown, open "Dear [first name],",
 mention invoice no + amount, request payment in 3 working days,
-close "Warm regards,\\n{biz_name}". Under 150 words.
+close "Warm regards,\n{biz_name}". Under 150 words.
 Return only the JSON."""
 
     try:
         resp = client.chat.completions.create(
-            model=GROQ_MODEL,
+            model=target_model,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=600,
             temperature=0.2,
