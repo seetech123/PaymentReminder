@@ -74,10 +74,12 @@ def _is_configured() -> bool:
         os.getenv("GMAIL_APP_PASSWORD"),
     ])
 
-def _active_key()      -> str:  return st.session_state.rt_groq_key   or GROQ_API_KEY
-def _active_gmail()    -> str:  return st.session_state.rt_gmail_user  or os.getenv("GMAIL_USER","")
-def _active_gmail_pw() -> str:  return st.session_state.rt_gmail_pass  or os.getenv("GMAIL_APP_PASSWORD","")
-def _active_biz()      -> str:  return st.session_state.rt_biz_name    or BUSINESS_NAME
+def _active_key()      -> str:  return st.session_state.get("rt_groq_key", GROQ_API_KEY) or GROQ_API_KEY
+def _active_gmail()    -> str:  return st.session_state.get("rt_gmail_user", os.getenv("GMAIL_USER","")) or os.getenv("GMAIL_USER","")
+def _active_gmail_pw() -> str:  return st.session_state.get("rt_gmail_pass", os.getenv("GMAIL_APP_PASSWORD","")) or os.getenv("GMAIL_APP_PASSWORD","")
+def _active_biz()      -> str:  return st.session_state.get("rt_biz_name", BUSINESS_NAME) or BUSINESS_NAME
+
+_init()
 
 def get_working_groq_model(c: Groq) -> str:
     candidates = [
@@ -225,12 +227,13 @@ with st.sidebar:
         # Local mode — show dry run toggle + credential status
         st.markdown("**Mode:** 💻 Local")
         st.divider()
-        st.session_state.dry_run = st.toggle(
+        current_dry_run = st.session_state.get("dry_run", DRY_RUN)
+        st.session_state["dry_run"] = st.toggle(
             "Dry run mode",
-            value=st.session_state.dry_run,
+            value=current_dry_run,
             help="ON = preview only, nothing sent. OFF = emails sent.",
         )
-        if st.session_state.dry_run:
+        if st.session_state["dry_run"]:
             st.info("Dry run ON — emails will not be sent.")
         else:
             st.warning("Dry run OFF — emails WILL be sent.")
@@ -240,7 +243,7 @@ with st.sidebar:
         gmail_ok = bool(_active_gmail() and _active_gmail_pw())
         st.markdown(f"{'✅' if groq_ok  else '❌'}  Groq API key")
         st.markdown(f"{'✅' if gmail_ok else '❌'}  Gmail credentials")
-        if st.session_state.step not in ("setup",) and (groq_ok or gmail_ok):
+        if st.session_state.get("step", "setup") not in ("setup",) and (groq_ok or gmail_ok):
             if st.button("⚙️ Edit credentials"):
                 st.session_state.step = "setup"
                 st.session_state.setup_substep = "groq"
