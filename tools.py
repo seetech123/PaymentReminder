@@ -34,33 +34,167 @@ def _err(message: str) -> str:
 # Tool 1 — read_invoices
 # ─────────────────────────────────────────────────────────────
 
-def read_invoices(xlsx_path: str) -> str:
+import re
+
+def _process_dataframe(df: pd.DataFrame) -> list[dict]:
+    df.columns = [
+        str(c).strip().lower().replace(" ", "_").replace("-", "_")
+        for c in df.columns
+    ]
+    df = df.fillna("")
+
+    alias_map = {
+        "inv_no": "invoice_no", "invoice": "invoice_no", "inv_#": "invoice_no",
+        "client": "client_name", "customer": "client_name", "customer_name": "client_name",
+        "mail": "email", "email_address": "email",
+        "total": "amount", "price": "amount", "inv_amount": "amount",
+        "due": "due_date", "payment_due": "due_date",
+    }
+    new_cols = {col: alias_map.get(col, col) for col in df.columns}
+    df = df.rename(columns=new_cols)
+
+    for col in [c for c in df.columns if "date" in c]:
+        df[col] = (
+            pd.to_datetime(df[col], errors="coerce")
+            .dt.strftime("%Y-%m-%d")
+            .fillna("")
+        )
+
+    return df.to_dict(orient="records")
+
+
+def _extract_invoices_from_text(text: str) -> list[dict]:
+    """Extract structured invoice fields from raw document text."""
+    lines = [l.strip() for l in text.split("\n") if l.strip()]
+    records = []
+
+    # Check for tab/comma separated table lines in text
+    table_rows = []
+    for l in lines:
+        parts = re.split(r'\t+|,|\|', l)
+        parts = [p.strip() for p in parts if p.strip()]
+        if len(parts) >= 4:
+            table_rows.append(parts)
+
+    if len(table_rows) > 1:
+        headers = [p.lower().replace(" ", "_").replace("-", "_") for p in table_rows[0]]
+        if any(k in h for h in headers for k in ["invoice", "client", "email", "amount"]):
+            for r in table_rows[1:]:
+                rec = {}
+                for idx, h in enumerate(headers):
+                    val = r[idx] if idx < len(r) else ""
+                    rec[h] = val
+                records.append(rec)
+            if records:
+                return _process_dataframe(pd.DataFrame(records))
+
+    # Single invoice key-value extraction
+    emails = re.findall(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', text)
+    inv_nos = re.findall(r'(?:INV|INV-)[A-Za-z0-9-]+', text, re.IGNORECASE) or re.findall(r'Invoice\s*(?:No\.?|#)?\s*:?\s*([A-Za-z0-9-]+)', text, re.IGNORECASE)
+    amounts = re.findall(r'(?:₹|RS\.?|INR|\$)\s*([\d,]+(?:\.\d{2})?)', text, re.IGNORECASE) or re.findall(r'Amount\s*:?\s*([\d,]+)', text, re.IGNORECASE)
+    dates = re.findall(r'\b(?:\d{4}-\d{2}-\d{2}|\d{2}/\d{2}/\d{4}|\d{2}-\d{2}-\d{4})\b', text)
+
+    inv_no = inv_nos[0] if inv_nos else "INV-DOC-001"
+    email = emails[0] if emails else ""
+    amount = amounts[0].replace(",", "") if amounts else "0"
+    due_date = dates[-1] if dates else ""
+    client_name = "Client"
+
+    for l in lines:
+        if re.search(r'client|customer|bill to', l, re.IGNORECASE):
+            parts = l.split(":")
+            if len(parts) > 1:
+                client_name = parts[1].strip()
+                break
+
+    records.append({
+        "invoice_no": inv_no,
+        "client_name": client_name,
+        "email": email,
+        "amount": amount,
+        "due_date": due_date,
+        "status": "Unpaid",
+        "notes": "Extracted from document"
+    })
+
+    return _process_dataframe(pd.DataFrame(records))
+
+
+def _parse_pdf_file(path: Path) -> list[dict]:
+    try:
+        import pypdf
+        reader = pypdf.PdfReader(str(path))
+        text = "\n".join([page.extract_text() or "" for page in reader.pages])
+        return _extract_invoices_from_text(text)
+    except Exception as e:
+        return []
+
+
+def _parse_docx_file(path: Path) -> list[dict]:
+    try:
+        import docx
+        doc = docx.Document(str(path))
+        table_records = []
+        for table in doc.tables:
+            rows = []
+            for row in table.rows:
+                cell_texts = [cell.text.strip() for cell in row.cells]
+                if any(cell_texts):
+                    rows.append(cell_texts)
+            if len(rows) > 1:
+                headers = [c.strip().lower().replace(" ", "_").replace("-", "_") for c in rows[0]]
+                for r in rows[1:]:
+                    rec = {}
+                    for idx, h in enumerate(headers):
+                        val = r[idx] if idx < len(r) else ""
+                        rec[h] = val
+                    table_records.append(rec)
+
+        if table_records:
+            return _process_dataframe(pd.DataFrame(table_records))
+
+        full_text = "\n".join([p.text.strip() for p in doc.paragraphs if p.text.strip()])
+        return _extract_invoices_from_text(full_text)
+    except Exception as e:
+        return []
+
+
+def read_invoices(file_path: str) -> str:
     """
-    Load all rows from the Excel file.
+    Load all rows from Excel (.xlsx, .xls), CSV (.csv), PDF (.pdf), or Word (.docx).
     Normalises column names to snake_case.
     Converts date columns to ISO-8601 strings so they're JSON-safe.
     """
-    path = Path(xlsx_path)
+    path = Path(file_path)
     if not path.exists():
-        return _err(f"File not found: {xlsx_path}")
+        return _err(f"File not found: {file_path}")
+
+    ext = path.suffix.lower()
 
     try:
-        df = pd.read_excel(path, dtype=str)
-        df.columns = [
-            c.strip().lower().replace(" ", "_").replace("-", "_")
-            for c in df.columns
-        ]
-        df = df.fillna("")
+        if ext in (".xlsx", ".xls"):
+            df = pd.read_excel(path, dtype=str)
+            records = _process_dataframe(df)
 
-        # Parse and reformat any date columns
-        for col in [c for c in df.columns if "date" in c]:
-            df[col] = (
-                pd.to_datetime(df[col], errors="coerce")
-                .dt.strftime("%Y-%m-%d")
-                .fillna("")
-            )
+        elif ext == ".csv":
+            df = pd.read_csv(path, dtype=str)
+            records = _process_dataframe(df)
 
-        return _ok({"count": len(df), "invoices": df.to_dict(orient="records")})
+        elif ext == ".pdf":
+            records = _parse_pdf_file(path)
+
+        elif ext in (".docx", ".doc"):
+            records = _parse_docx_file(path)
+
+        else:
+            try:
+                df = pd.read_excel(path, dtype=str)
+                records = _process_dataframe(df)
+            except Exception:
+                df = pd.read_csv(path, dtype=str)
+                records = _process_dataframe(df)
+
+        return _ok({"count": len(records), "invoices": records})
 
     except Exception as exc:
         return _err(str(exc))

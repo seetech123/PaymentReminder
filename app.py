@@ -199,7 +199,9 @@ Return only the JSON."""
 
 
 def _load_overdue(file_obj, days: int) -> list[dict]:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+    filename = getattr(file_obj, "name", "invoices.xlsx")
+    suffix   = Path(filename).suffix.lower() or ".xlsx"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(file_obj.getvalue())
         tmp_path = tmp.name
     raw = json.loads(read_invoices(tmp_path))
@@ -435,13 +437,13 @@ def page_upload():
 
     st.markdown("### Step 1 — Upload your invoices file")
     st.markdown(
-        "Your Excel file needs these columns: "
-        "**Invoice No, Client Name, Email, Amount, Due Date, Status**"
+        "Supported formats: **Excel (.xlsx, .xls), CSV (.csv), PDF (.pdf), Word (.docx)**\n\n"
+        "Fields detected: **Invoice No, Client Name, Email, Amount, Due Date, Status**"
     )
 
     uploaded = st.file_uploader(
-        "Drag and drop your invoices Excel here",
-        type=["xlsx"],
+        "Drag and drop your invoices file here (Excel, CSV, PDF, Word)",
+        type=["xlsx", "xls", "csv", "pdf", "docx", "doc"],
         label_visibility="collapsed",
     )
 
