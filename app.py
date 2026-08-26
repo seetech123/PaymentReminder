@@ -130,12 +130,21 @@ def verify_groq(api_key: str) -> tuple[bool, str]:
 
 
 def verify_gmail(user: str, password: str) -> tuple[bool, str]:
+    clean_user = user.strip()
+    clean_pw   = password.replace(" ", "").strip()
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as smtp:
-            smtp.login(user, password)
-        return True, "✅ Gmail connected successfully."
+        try:
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as smtp:
+                smtp.login(clean_user, clean_pw)
+            return True, "✅ Gmail connected successfully."
+        except Exception:
+            with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as smtp:
+                smtp.ehlo()
+                smtp.starttls()
+                smtp.login(clean_user, clean_pw)
+            return True, "✅ Gmail connected successfully."
     except smtplib.SMTPAuthenticationError:
-        return False, "❌ Wrong email or App Password. Check the steps below."
+        return False, "❌ Authentication failed. Make sure: 1) 2-Step Verification is ON, 2) You generated an 'App Password' from myaccount.google.com/apppasswords (NOT your regular login password)."
     except Exception as exc:
         return False, f"❌ {exc}"
 
